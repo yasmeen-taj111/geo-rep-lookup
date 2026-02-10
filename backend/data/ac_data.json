@@ -1,0 +1,290 @@
+{
+  "Shivajinagar": {
+    "name": "Rizwan Arshad",
+    "party": "INC",
+    "constituency": "Shivajinagar",
+    "constituency_number": "157",
+    "contact": "+91-80-22866530",
+    "email": "rizwanarshad.mla@karnataka.gov.in"
+  },
+  "Chickpet": {
+    "name": "B Z Zameer Ahmed Khan",
+    "party": "INC",
+    "constituency": "Chickpet",
+    "constituency_number": "156",
+    "contact": "+91-80-22341234",
+    "email": "zameer.mla@karnataka.gov.in"
+  },
+  "Chamrajpet": {
+    "name": "B Z Zameer Ahmed Khan",
+    "party": "INC",
+    "constituency": "Chamrajpet",
+    "constituency_number": "153",
+    "contact": "+91-80-22341234",
+    "email": "zameer.mla@karnataka.gov.in"
+  },
+  "Rajaji Nagar": {
+    "name": "Suresh Kumar",
+    "party": "BJP",
+    "constituency": "Rajaji Nagar",
+    "constituency_number": "155",
+    "contact": "+91-80-22345678",
+    "email": "sureshkumar.mla@karnataka.gov.in"
+  },
+  "Govindraj Nagar": {
+    "name": "Priya Krishna",
+    "party": "INC",
+    "constituency": "Govindraj Nagar",
+    "constituency_number": "154",
+    "contact": "+91-80-22456789",
+    "email": "priyakrishna.mla@karnataka.gov.in"
+  },
+  "Yeshvanthapura": {
+    "name": "S T Somashekar",
+    "party": "BJP",
+    "constituency": "Yeshvanthapura",
+    "constituency_number": "159",
+    "contact": "+91-80-23567890",
+    "email": "stsomashekar.mla@karnataka.gov.in"
+  },
+  "Rajarajeshwarinagar": {
+    "name": "Munirathna",
+    "party": "BJP",
+    "constituency": "Rajarajeshwarinagar",
+    "constituency_number": "160",
+    "contact": "+91-80-23678901",
+    "email": "munirathna.mla@karnataka.gov.in"
+  },
+  "Dasarahalli": {
+    "name": "S Muniraju",
+    "party": "BJP",
+    "constituency": "Dasarahalli",
+    "constituency_number": "161",
+    "contact": "+91-80-23789012",
+    "email": "smuniraju.mla@karnataka.gov.in"
+  },
+  "Mahalakshmi Layout": {
+    "name": "K Gopalaiah",
+    "party": "INC",
+    "constituency": "Mahalakshmi Layout",
+    "constituency_number": "162",
+    "contact": "+91-80-23890123",
+    "email": "kgopalaiah.mla@karnataka.gov.in"
+  },
+  "Malleshwaram": {
+    "name": "Ashwath Narayan C N",
+    "party": "BJP",
+    "constituency": "Malleshwaram",
+    "constituency_number": "163",
+    "contact": "+91-80-23901234",
+    "email": "ashwathnarayan.mla@karnataka.gov.in"
+  },
+  "Hebbal": {
+    "name": "Byrati Basavaraj",
+    "party": "BJP",
+    "constituency": "Hebbal",
+    "constituency_number": "164",
+    "contact": "+91-80-24012345",
+    "email": "byratibasavaraj.mla@karnataka.gov.in"
+  },
+  "Yelahanka": {
+    "name": "S R Vishwanath",
+    "party": "BJP",
+    "constituency": "Yelahanka",
+    "constituency_number": "151",
+    "contact": "+91-80-23456780",
+    "email": "srvishwanath.mla@karnataka.gov.in"
+  },
+  "Byatarayanapura": {
+    "name": "Krishna Byregowda",
+    "party": "INC",
+    "constituency": "Byatarayanapura",
+    "constituency_number": "158",
+    "contact": "+91-80-23456781",
+    "email": "krishnabyregowda.mla@karnataka.gov.in"
+  },
+  "K.R.Pura": {
+    "name": "Byrathi Suresh",
+    "party": "INC",
+    "constituency": "K.R.Pura",
+    "constituency_number": "178",
+    "contact": "+91-80-25678902",
+    "email": "byrathisuresh.mla@karnataka.gov.in"
+  },
+  "Mahadevapura": {
+    "name": "Manjula Aravind Limbavali",
+    "party": "BJP",
+    "constituency": "Mahadevapura",
+    "constituency_number": "165",
+    "contact": "+91-80-28456789",
+    "email": "aravindlimbavali.mla@karnataka.gov.in"
+  },
+  "Pulakeshinagar(SC)": {
+    "name": "Akhanda Srinivasa Murthy",
+    "party": "INC",
+    "constituency": "Pulakeshinagar(SC)",
+    "constituency_number": "166",
+    "contact": "+91-80-24123456",
+    "email": "asrinivasa.mla@karnataka.gov.in"
+  },
+  "Sarvagnanagar": {
+    "name": "M Krishnappa",
+    "party": "INC",
+    "constituency": "Sarvagnanagar",
+    "constituency_number": "167",
+    "contact": "+91-80-24234567",
+    "email": "mkrishnappa.mla@karnataka.gov.in"
+  },
+  "C.V. Raman Nagar(SC)": {
+    "name": "S Raghu",
+    "party": "INC",
+    "constituency": "C.V. Raman Nagar(SC)",
+    "constituency_number": "168",
+    "contact": "+91-80-24345678",
+    "email": "sraghu.mla@karnataka.gov.in"
+  },
+  "Shanti Nagar": {
+    "name": "N A Haris",
+    "party": "INC",
+    "constituency": "Shanti Nagar",
+    "constituency_number": "169",
+    "contact": "+91-80-24456789",
+    "email": "naharis.mla@karnataka.gov.in"
+  },
+  "Gandhi Nagar": {
+    "name": "Dinesh Gundu Rao",
+    "party": "INC",
+    "constituency": "Gandhi Nagar",
+    "constituency_number": "170",
+    "contact": "+91-80-24567890",
+    "email": "dineshgundurao.mla@karnataka.gov.in"
+  },
+  "Vijay Nagar": {
+    "name": "M Krishnappa",
+    "party": "INC",
+    "constituency": "Vijay Nagar",
+    "constituency_number": "171",
+    "contact": "+91-80-24678901",
+    "email": "mkrishnappa2.mla@karnataka.gov.in"
+  },
+  "Basavanagudi": {
+    "name": "K Ramamurthy",
+    "party": "INC",
+    "constituency": "Basavanagudi",
+    "constituency_number": "172",
+    "contact": "+91-80-24789012",
+    "email": "kramamurthy.mla@karnataka.gov.in"
+  },
+  "Padmanaba Nagar": {
+    "name": "R Sampath Raj",
+    "party": "INC",
+    "constituency": "Padmanaba Nagar",
+    "constituency_number": "173",
+    "contact": "+91-80-24890123",
+    "email": "rsampathraj.mla@karnataka.gov.in"
+  },
+  "B.T.M Layout": {
+    "name": "Ramalinga Reddy",
+    "party": "INC",
+    "constituency": "B.T.M Layout",
+    "constituency_number": "174",
+    "contact": "+91-80-26785432",
+    "email": "ramalingareddy.mla@karnataka.gov.in"
+  },
+  "Bommanahalli": {
+    "name": "Satish Reddy",
+    "party": "BJP",
+    "constituency": "Bommanahalli",
+    "constituency_number": "175",
+    "contact": "+91-80-27834567",
+    "email": "satishreddy.mla@karnataka.gov.in"
+  },
+  "Jayanagar": {
+    "name": "Sowmya Reddy",
+    "party": "INC",
+    "constituency": "Jayanagar",
+    "constituency_number": "176",
+    "contact": "+91-80-26567890",
+    "email": "sowmyareddy.mla@karnataka.gov.in"
+  },
+  "Bangalore South": {
+    "name": "M Krishnappa",
+    "party": "BJP",
+    "constituency": "Bangalore South",
+    "constituency_number": "177",
+    "contact": "+91-80-25678901",
+    "email": "mkrishnappa.blrsouth.mla@karnataka.gov.in"
+  },
+  "Anekal (SC)": {
+    "name": "Vishwanath",
+    "party": "INC",
+    "constituency": "Anekal (SC)",
+    "constituency_number": "179",
+    "contact": "+91-80-27890124",
+    "email": "vishwanath.mla@karnataka.gov.in"
+  },
+  "Hosakote": {
+    "name": "Sharath K Bachegowda",
+    "party": "INC",
+    "constituency": "Hosakote",
+    "constituency_number": "180",
+    "contact": "+91-80-27901235",
+    "email": "sharathbachegowda.mla@karnataka.gov.in"
+  },
+  "Devanahalli (SC)": {
+    "name": "K H Muniyappa",
+    "party": "INC",
+    "constituency": "Devanahalli (SC)",
+    "constituency_number": "148",
+    "contact": "+91-80-27765432",
+    "email": "khmuniyappa.mla@karnataka.gov.in"
+  },
+  "Doddaballapur": {
+    "name": "Dheeraj Muniraj",
+    "party": "BJP",
+    "constituency": "Doddaballapur",
+    "constituency_number": "147",
+    "contact": "+91-80-27654321",
+    "email": "dheerajmuniraj.mla@karnataka.gov.in"
+  },
+  "Nelamangala (SC)": {
+    "name": "Srinivasaah N",
+    "party": "INC",
+    "constituency": "Nelamangala (SC)",
+    "constituency_number": "152",
+    "contact": "+91-80-23345678",
+    "email": "srinivasaah.mla@karnataka.gov.in"
+  },
+  "Magadi": {
+    "name": "H C Balakrishna",
+    "party": "INC",
+    "constituency": "Magadi",
+    "constituency_number": "149",
+    "contact": "+91-80-27123456",
+    "email": "hcbalakrishna.mla@karnataka.gov.in"
+  },
+  "Ramanagaram": {
+    "name": "Iqbal Hussain",
+    "party": "INC",
+    "constituency": "Ramanagaram",
+    "constituency_number": "150",
+    "contact": "+91-80-27234567",
+    "email": "iqbalhussain.mla@karnataka.gov.in"
+  },
+  "Kanakapura": {
+    "name": "D K Shivakumar",
+    "party": "INC",
+    "constituency": "Kanakapura",
+    "constituency_number": "184",
+    "contact": "+91-80-26123456",
+    "email": "dkshivakumar.mla@karnataka.gov.in"
+  },
+  "Channapatna": {
+    "name": "C P Yogeshwar",
+    "party": "INC",
+    "constituency": "Channapatna",
+    "constituency_number": "185",
+    "contact": "+91-80-27345678",
+    "email": "cpyogeshwar.mla@karnataka.gov.in"
+  }
+}

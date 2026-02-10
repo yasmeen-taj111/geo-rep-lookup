@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bangalore Representative Finder</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>🗳️ Bangalore Representative Finder</h1>
+      <p>Click on the map to find your MP and MLA</p>
+    </header>
+
+    <div class="main-content">
+      <div class="map-section">
+        <div id="map"></div>
+        <div class="instructions">
+          📍 Click anywhere on the map or enter coordinates below
+        </div>
+      </div>
+
+      <div class="results-section">
+        <div class="input-section">
+          <h3>Manual Entry</h3>
+          <div class="input-group">
+            <input type="number" id="latitude" placeholder="Latitude (12.9716)" step="0.0001" min="12.7" max="13.2">
+            <input type="number" id="longitude" placeholder="Longitude (77.5946)" step="0.0001" min="77.3" max="77.9">
+            <button id="lookup-btn">Find</button>
+          </div>
+        </div>
+
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <p>Looking up...</p>
+        </div>
+
+        <div id="error" class="error hidden"></div>
+
+        <div id="results" class="results hidden">
+          <h3>Your Representatives</h3>
+          <p class="coords" id="coords"></p>
+
+          <div class="card" id="mp-card">
+            <div class="card-header mp">Member of Parliament (MP)</div>
+            <div class="card-body">
+              <h4 id="mp-name"></h4>
+              <span class="party" id="mp-party"></span>
+              <p><strong>Constituency:</strong> <span id="mp-constituency"></span></p>
+              <div class="contact" id="mp-contact"></div>
+            </div>
+          </div>
+
+          <div class="card" id="mla-card">
+            <div class="card-header mla">Member of Legislative Assembly (MLA)</div>
+            <div class="card-body">
+              <h4 id="mla-name"></h4>
+              <span class="party" id="mla-party"></span>
+              <p><strong>Constituency:</strong> <span id="mla-constituency"></span></p>
+              <div class="contact" id="mla-contact"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>Built for civic education | Data: Election Commission of India</p>
+    </footer>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>

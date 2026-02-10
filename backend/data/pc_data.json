@@ -1,0 +1,38 @@
+{
+  "Bangalore Central": {
+    "name": "PC Mohan",
+    "party": "BJP",
+    "constituency": "Bangalore Central",
+    "constituency_number": "25",
+    "contact": "+91-11-23034660",
+    "email": "pcmohan@sansad.nic.in",
+    "office_address": "335-C, Parliament House Annexe, New Delhi - 110001"
+  },
+  "Bangalore North": {
+    "name": "Shobha Karandlaje",
+    "party": "BJP",
+    "constituency": "Bangalore North",
+    "constituency_number": "24",
+    "contact": "+91-11-23034555",
+    "email": "shobha.karandlaje@sansad.nic.in",
+    "office_address": "Parliament House Annexe, New Delhi - 110001"
+  },
+  "Bangalore South": {
+    "name": "Tejasvi Surya",
+    "party": "BJP",
+    "constituency": "Bangalore South",
+    "constituency_number": "26",
+    "contact": "+91-11-23034777",
+    "email": "tejasvi.surya@sansad.nic.in",
+    "office_address": "Parliament House Annexe, New Delhi - 110001"
+  },
+  "Bangalore Rural": {
+    "name": "Dr. C N Manjunath",
+    "party": "BJP",
+    "constituency": "Bangalore Rural",
+    "constituency_number": "27",
+    "contact": "+91-11-23034888",
+    "email": "manjunath.cn@sansad.nic.in",
+    "office_address": "Parliament House Annexe, New Delhi - 110001"
+  }
+}
