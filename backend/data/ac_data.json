@@ -15,14 +15,6 @@
     "contact": "+91-80-22341234",
     "email": "zameer.mla@karnataka.gov.in"
   },
-  "Chamrajpet": {
-    "name": "B Z Zameer Ahmed Khan",
-    "party": "INC",
-    "constituency": "Chamrajpet",
-    "constituency_number": "153",
-    "contact": "+91-80-22341234",
-    "email": "zameer.mla@karnataka.gov.in"
-  },
   "Rajaji Nagar": {
     "name": "Suresh Kumar",
     "party": "BJP",
@@ -86,38 +78,6 @@
     "constituency_number": "164",
     "contact": "+91-80-24012345",
     "email": "byratibasavaraj.mla@karnataka.gov.in"
-  },
-  "Yelahanka": {
-    "name": "S R Vishwanath",
-    "party": "BJP",
-    "constituency": "Yelahanka",
-    "constituency_number": "151",
-    "contact": "+91-80-23456780",
-    "email": "srvishwanath.mla@karnataka.gov.in"
-  },
-  "Byatarayanapura": {
-    "name": "Krishna Byregowda",
-    "party": "INC",
-    "constituency": "Byatarayanapura",
-    "constituency_number": "158",
-    "contact": "+91-80-23456781",
-    "email": "krishnabyregowda.mla@karnataka.gov.in"
-  },
-  "K.R.Pura": {
-    "name": "Byrathi Suresh",
-    "party": "INC",
-    "constituency": "K.R.Pura",
-    "constituency_number": "178",
-    "contact": "+91-80-25678902",
-    "email": "byrathisuresh.mla@karnataka.gov.in"
-  },
-  "Mahadevapura": {
-    "name": "Manjula Aravind Limbavali",
-    "party": "BJP",
-    "constituency": "Mahadevapura",
-    "constituency_number": "165",
-    "contact": "+91-80-28456789",
-    "email": "aravindlimbavali.mla@karnataka.gov.in"
   },
   "Pulakeshinagar(SC)": {
     "name": "Akhanda Srinivasa Murthy",
@@ -207,13 +167,29 @@
     "contact": "+91-80-26567890",
     "email": "sowmyareddy.mla@karnataka.gov.in"
   },
-  "Bangalore South": {
-    "name": "M Krishnappa",
+  "Mahadevapura": {
+    "name": "Manjula Aravind Limbavali",
     "party": "BJP",
-    "constituency": "Bangalore South",
-    "constituency_number": "177",
-    "contact": "+91-80-25678901",
-    "email": "mkrishnappa.blrsouth.mla@karnataka.gov.in"
+    "constituency": "Mahadevapura",
+    "constituency_number": "165",
+    "contact": "+91-80-28456789",
+    "email": "aravindlimbavali.mla@karnataka.gov.in"
+  },
+  "Byatarayanapura": {
+    "name": "Krishna Byregowda",
+    "party": "INC",
+    "constituency": "Byatarayanapura",
+    "constituency_number": "158",
+    "contact": "+91-80-23456781",
+    "email": "krishnabyregowda.mla@karnataka.gov.in"
+  },
+  "K.R.Pura": {
+    "name": "Byrathi Suresh",
+    "party": "INC",
+    "constituency": "K.R.Pura",
+    "constituency_number": "178",
+    "contact": "+91-80-25678902",
+    "email": "byrathisuresh.mla@karnataka.gov.in"
   },
   "Anekal (SC)": {
     "name": "Vishwanath",
@@ -231,6 +207,38 @@
     "contact": "+91-80-27901235",
     "email": "sharathbachegowda.mla@karnataka.gov.in"
   },
+  "Chamrajpet": {
+    "name": "B Z Zameer Ahmed Khan",
+    "party": "INC",
+    "constituency": "Chamrajpet",
+    "constituency_number": "153",
+    "contact": "+91-80-26543210",
+    "email": "zameer.chamrajpet.mla@karnataka.gov.in"
+  },
+  "Yelahanka": {
+    "name": "S R Vishwanath",
+    "party": "BJP",
+    "constituency": "Yelahanka",
+    "constituency_number": "151",
+    "contact": "+91-80-23456780",
+    "email": "srvishwanath.mla@karnataka.gov.in"
+  },
+  "Bangalore South": {
+    "name": "M Krishnappa",
+    "party": "BJP",
+    "constituency": "Bangalore South",
+    "constituency_number": "177",
+    "contact": "+91-80-25678901",
+    "email": "mkrishnappa.blrsouth.mla@karnataka.gov.in"
+  },
+  "Doddaballapur": {
+    "name": "Dhiraj Muniraju",
+    "party": "BJP",
+    "constituency": "Doddaballapur",
+    "constituency_number": "147",
+    "contact": "+91-80-27654321",
+    "email": "dhirajmuniraju.mla@karnataka.gov.in"
+  },
   "Devanahalli (SC)": {
     "name": "K H Muniyappa",
     "party": "INC",
@@ -238,14 +246,6 @@
     "constituency_number": "148",
     "contact": "+91-80-27765432",
     "email": "khmuniyappa.mla@karnataka.gov.in"
-  },
-  "Doddaballapur": {
-    "name": "Dheeraj Muniraj",
-    "party": "BJP",
-    "constituency": "Doddaballapur",
-    "constituency_number": "147",
-    "contact": "+91-80-27654321",
-    "email": "dheerajmuniraj.mla@karnataka.gov.in"
   },
   "Nelamangala (SC)": {
     "name": "Srinivasaah N",
