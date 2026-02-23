@@ -1,7 +1,7 @@
 """
 Service Layer - AC->PC mapping approach for accurate MP lookup.
 
-KEY FIX: Your GeoJSON uses AC_NAME (all caps), not AC_Name.
+KEY FIX: GeoJSON uses AC_NAME (all caps), not AC_Name.
 
 OFFICIAL AC->PC MAPPING (2008 ECI Delimitation):
   Bangalore North (24)  - K.R.Pura, Byatarayanapura, Yeshvanthapura, Dasarahalli,

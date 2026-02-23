@@ -1,4 +1,4 @@
-"""Data Loader - Loads GeoJSON and representative data - UPDATED FOR YOUR FILES"""
+"""Data Loader - Loads GeoJSON and representative data - UPDATED FOR  FILES"""
 
 import json
 import os

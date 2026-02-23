@@ -300,7 +300,7 @@ pydantic==2.5.3
 
 | Data | Source |
 |---|---|
-| AC/PC boundary GeoJSON | Karnataka GIS / DataMeet Community Maps |
+| AC/PC boundary GeoJSON | Karnataka GIS / DataMeet Community Maps |kv
 | AC → PC mapping | Election Commission of India, 2008 Delimitation Order |
 | MLA data | Karnataka Legislative Assembly, 2023 Election Results |
 | MP data | Lok Sabha, 2024 Election Results |
