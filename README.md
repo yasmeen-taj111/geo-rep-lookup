@@ -1,173 +1,381 @@
-# 🗳️ Bangalore Geo-Representative Lookup
+# Geo Rep Lookup — Bangalore
 
-Find your **MP (Member of Parliament)** and **MLA (Member of Legislative Assembly)** by clicking anywhere on a map of Bangalore.
+> Instantly find your **MLA** and **MP** by clicking anywhere on Bangalore's map,
+> or by typing a constituency name in the search bar.
 
----
-
-## 📁 Project Structure
-
-```
-geo-rep-lookup/
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py          # Package init
-│   │   ├── main.py              # FastAPI application & API routes
-│   │   ├── services.py          # Business logic & AC→PC mapping
-│   │   ├── loader.py            # Loads GeoJSON and JSON data files
-│   │   └── raycast.py           # Point-in-polygon algorithm
-│   ├── data/
-│   │   ├── ac_bangalore.geojson # Assembly constituency boundaries
-│   │   ├── pc_bangalore.geojson # Parliamentary constituency boundaries
-│   │   ├── ac_data.json         # MLA names, parties, contacts
-│   │   └── pc_data.json         # MP names, parties, contacts
-│   └── requirements.txt
-└── frontend/
-    ├── index.html               # Main UI
-    ├── styles.css               # Styling
-    └── app.js                   # Map interaction & API calls
-```
+![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-80%20passing-2dd4a0?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
 
 ---
 
-## ⚙️ How It Works
+## Table of Contents
 
-### 1. User clicks on map
-The frontend captures `(latitude, longitude)` coordinates from the click.
+1. [Project Overview](#project-overview)
+2. [Features](#features)
+3. [How It Works](#how-it-works)
+4. [Project Structure](#project-structure)
+5. [Local Setup](#local-setup)
+6. [Running the Backend](#running-the-backend)
+7. [Running the Frontend](#running-the-frontend)
+8. [Running Tests](#running-tests)
+9. [API Reference](#api-reference)
+10. [Example curl Requests](#example-curl-requests)
+11. [Raycasting Algorithm](#raycasting-algorithm)
+12. [Edge Cases Handled](#edge-cases-handled)
+13. [Future Improvements](#future-improvements)
 
-### 2. API call to backend
+---
+
+## Project Overview
+
+Geo Rep Lookup is a full-stack civic data tool for Bangalore. A user clicks any point on an interactive map — or searches a constituency name — and the app returns their elected representatives: the **MLA** (Member of Legislative Assembly) and **MP** (Member of Parliament), along with party affiliation and contact details.
+
+The core technical piece is a **pure-Python raycasting point-in-polygon algorithm** with no geospatial library dependency. It tests a clicked coordinate against all 37 Assembly Constituency boundaries in under a millisecond.
+
+**Stack:**
+
+| Layer | Technology |
+|---|---|
+| Backend | Python 3.10+, FastAPI, Uvicorn |
+| Algorithm | Custom raycasting (`raycast.py`) |
+| Frontend | Vanilla HTML / CSS / JavaScript — no framework, no build step |
+| Map | Leaflet.js 1.9.4 + OpenStreetMap tiles |
+| Testing | pytest, httpx, pytest-asyncio |
+| Data | ECI 2008 delimitation · KA Assembly 2023 · Lok Sabha 2024 |
+
+---
+
+## Features
+
+### Backend
+
+**Raycasting point-in-polygon algorithm**
+- Implements the W. Randolph Franklin ray-crossing method in pure Python
+- Handles `Polygon`, `MultiPolygon`, and polygons with interior holes
+- All 37 AC boundaries tested per request with no external geospatial library
+- Returns in under 1 ms for typical Bangalore coordinates
+
+**FastAPI application**
+- Five documented REST endpoints with automatic Swagger UI at `/docs`
+- CORS middleware configured for all local origins
+- DataStore singleton loaded once at startup via `lifespan` — zero disk I/O per request
+- FastAPI query parameter validation (`ge`/`le`) rejects out-of-range coordinates with 422 before business logic runs
+- Structured error responses: 404 outside boundary, 503 data not loaded, 422 invalid params
+
+**AC → PC mapping**
+- Hardcoded ECI 2008 delimitation table maps all 37 ACs to their Parliamentary Constituency
+- More reliable than polygon intersection against the PC GeoJSON (which has overlapping boundary artefacts)
+- O(1) lookup via inverted dict
+
+**GeoJSON endpoint**
+- Serves individual AC polygon geometry for map boundary highlighting
+- Case-insensitive name lookup (`shivajinagar`, `Shivajinagar`, `SHIVAJINAGAR` all resolve)
+
+### Frontend
+
+**Interactive map**
+- Click anywhere in Bangalore to look up the representative for that point
+- Animated teardrop pin placed on click
+- Matched AC boundary drawn on the map after every successful lookup
+- Reset button restores default view
+
+**Search with real-time suggestions**
+- Partial, case-insensitive substring match against all 37 AC names
+- Dropdown appears on every keystroke with no debounce delay
+- Matching substring highlighted in accent colour inside each suggestion
+- Explicit "No match for …" row shown when nothing matches — never silently disappears
+- Up to 8 suggestions shown simultaneously
+
+**Smart search resolution**
+- Exact match → resolves immediately
+- One partial match → resolves silently (e.g. "mallesh" → Malleshwaram)
+- Multiple partial matches → picks first, informs user via toast
+- Zero matches → shows informative error toast
+
+**Recent searches**
+- Stored in `localStorage`, restored across sessions
+- Individual remove buttons on each item
+- Cleared from view while the user is actively typing
+
+**My Location**
+- Uses the browser Geolocation API
+- Distinct error messages per error code (denied / unavailable / timed out)
+
+**Dark / Light mode**
+- Detects OS preference on first load
+- Toggle persists in `localStorage`
+- All surfaces transition in 340 ms with no flash
+
+**Result cards**
+- Party-coloured badges (BJP orange, INC blue, JD green, AAP sky)
+- Contact information rows: phone, email, office address
+- Copy button (morphs to "Copied ✓" for 2.5 s)
+- Map-focus button (flies to the matched AC)
+- Share button (Web Share API with clipboard fallback)
+
+**4-state side panel**
+- Empty (default) → Loading skeleton → Classified error → Results
+- Error panel classifies the failure: API down (shows startup command), timeout, outside boundary, data missing
+- Retry button re-runs the last lookup
+
+**List view**
+- Full sortable table of all 37 ACs with their Parliamentary Constituency
+- Loaded lazily on first tab switch — no initial request
+- "Look up →" button in each row switches to map view and triggers a lookup
+
+**Accessibility**
+- All interactive elements have `aria-label`
+- `/` keyboard shortcut focuses the search input from anywhere
+- Arrow keys navigate the suggestion dropdown; Enter confirms; Escape dismisses
+- `aria-expanded`, `aria-selected`, `aria-busy` attributes maintained throughout
+- Focus rings visible, high-contrast mode supported
+
+**Performance feedback**
+- 2 px animated progress bar tracks request lifecycle (stalls at 85%, snaps to 100%)
+- "Found in 0.32s" shown in results meta bar
+- Toast notification system (non-blocking, auto-dismissing)
+
+### Tests
+
+**80 tests across 4 files** covering every layer of the stack. All tests use controlled fixtures and never touch real GeoJSON files.
+
+| File | Classes | Tests | Coverage |
+|---|---|---|---|
+| `test_raycast.py` | 5 | 25 | `_is_point_in_ring`, `point_in_polygon` for simple polygons, holes, MultiPolygon, all edge cases |
+| `test_services.py` | 5 | 30 | AC→PC map completeness, the Bangalore South AC/PC name collision invariant, all five helper functions |
+| `test_api.py` | 8 | 25 | All 5 routes — 200 / 404 / 503 / 422, parameter validation, case-insensitive GeoJSON, 503 when `data_store` is None |
+| `test_loader.py` | 3 | 16 | Missing files, malformed JSON, empty collections, correct return types |
+| **Total** | **21** | **80** | |
+
+Fixture strategy: `load_all_data` is patched at the lifespan level (not `data_store` directly) so FastAPI's `lifespan` context manager cannot overwrite injected test data.
+
+---
+
+## How It Works
+
 ```
-GET /api/v1/lookup?lat=12.9716&lon=77.5946
-```
-
-### 3. Point-in-polygon lookup (raycast.py)
-The backend casts a horizontal ray from the clicked point and counts how many times it crosses a polygon boundary. Odd = inside, Even = outside. This runs against every AC polygon in `ac_bangalore.geojson`.
-
-### 4. AC → PC mapping (services.py)
-Instead of using the PC GeoJSON directly (which has overlapping boundaries), the code uses a **hardcoded official mapping** from the 2008 ECI delimitation to find the correct parliamentary constituency from the assembly constituency name.
-
-### 5. Data lookup
-The AC name looks up the MLA in `ac_data.json`. The PC name looks up the MP in `pc_data.json`.
-
-### 6. Response returned to frontend
-```json
+User clicks map at (lat, lon)
+        │
+        ▼
+GET /api/v1/lookup?lat=12.97&lon=77.59
+        │
+        ▼
+raycast.py iterates all 37 AC GeoJSON features
+  For each polygon: cast a horizontal ray from (lon, lat) eastward
+  Count boundary crossings — odd = inside, even = outside
+        │
+        ▼
+Matched AC name (e.g. "Shivajinagar")
+→ services.py looks it up in the ECI AC→PC table
+→ "Bangalore Central (25)"
+        │
+        ▼
+MLA data ← ac_data.json keyed by AC name
+MP data  ← pc_data.json keyed by PC display name
+        │
+        ▼
+Response:
 {
   "latitude": 12.9716,
   "longitude": 77.5946,
-  "mp": {
-    "name": "PC Mohan",
-    "party": "BJP",
-    "constituency": "Bangalore Central"
-  },
-  "mla": {
-    "name": "Rizwan Arshad",
-    "party": "INC",
-    "constituency": "Shivajinagar"
-  }
+  "mla": { "name": "Rizwan Arshad", "party": "INC", ... },
+  "mp":  { "name": "PC Mohan",      "party": "BJP", ... }
 }
+        │
+        ▼
+Frontend renders result cards
+AC boundary drawn on map via GET /api/v1/constituencies/geojson/Shivajinagar
 ```
 
 ---
 
-## 🚀 Setup & Running
+## Project Structure
 
-### Prerequisites
-- Python 3.8+
-
-### Step 1 — Install backend dependencies
-
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+```
+geo-rep-lookup/
+│
+├── README.md
+│
+├── frontend/                        No build step — serve with any static server
+│   ├── index.html                   Semantic shell; 4 panel states; ARIA markup
+│   ├── styles.css                   CSS custom-property design system; dark/light themes
+│   └── app.js                       All frontend logic: search, map, API, error handling
+│
+└── backend/
+    ├── pytest.ini                   Test config: testpaths, addopts, markers
+    ├── requirements.txt             Runtime + test dependencies (pinned)
+    │
+    ├── app/
+    │   ├── __init__.py              Package init; version string
+    │   ├── main.py                  FastAPI app, lifespan, CORS, all 5 routes
+    │   ├── loader.py                DataStore dataclass; GeoJSON + JSON loaders
+    │   ├── raycast.py               point_in_polygon; _is_point_in_ring; _test_polygon
+    │   └── services.py              find_representatives; AC→PC map; helper functions
+    │
+    ├── data/
+    │   ├── ac_bangalore.geojson     37 AC polygon boundaries (ECI 2008)
+    │   ├── pc_bangalore.geojson     4 PC polygon boundaries (loaded, not used for lookup)
+    │   ├── ac_data.json             MLA names, parties, contacts — keyed by AC_NAME
+    │   └── pc_data.json             MP names, parties, contacts — keyed by PC display name
+    │
+    └── tests/
+        ├── __init__.py
+        ├── conftest.py              Fixtures: fake_store, geometry builders, data records
+        ├── test_raycast.py          25 tests — algorithm correctness
+        ├── test_services.py         30 tests — business logic + data integrity
+        ├── test_api.py              25 tests — HTTP routes, status codes, validation
+        └── test_loader.py           16 tests — file loading, error resilience
 ```
 
-### Step 2 — Start the backend
+---
+
+## Local Setup
+
+**Requirements:** Python 3.10+, any modern browser.
 
 ```bash
-# You must be inside the backend/ folder
+git clone https://github.com/yasmeen-taj111/geo-rep-lookup.git
+cd geo-rep-lookup
+```
+
+---
+
+## Running the Backend
+
+```bash
 cd backend
+
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate        # macOS / Linux
+# venv\Scripts\activate         # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the development server
 uvicorn app.main:app --reload
 ```
 
-You should see:
+Expected startup output:
+
 ```
-INFO:  Uvicorn running on http://127.0.0.1:8000
-INFO:  Loaded 37 AC constituencies
-INFO:  Loaded 4 PC constituencies
+INFO: Loaded 37 AC constituencies
+INFO: Loaded 4 PC constituencies
+INFO: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 ```
 
-### Step 3 — Start the frontend
+Interactive API docs are at `http://127.0.0.1:8000/docs`.
 
-Open a **new terminal**:
+---
+
+## Running the Frontend
+
+In a separate terminal (keep the backend running):
 
 ```bash
 cd frontend
 python3 -m http.server 3000
 ```
 
-### Step 4 — Open in browser
+Open `http://localhost:3000`.
 
-```
-http://localhost:3000
-```
+Any static file server works. VS Code Live Server, `npx serve`, nginx — all fine.
+The frontend is plain HTML/CSS/JS with no build step.
 
 ---
 
-## 🗺️ Data Files
+## Running Tests
 
-### ac_bangalore.geojson
-GeoJSON FeatureCollection of 37 assembly constituency polygons.
+All commands run from inside `backend/` with the virtual environment active.
 
-**Required property:** `AC_NAME` (all caps — this is what your GeoJSON uses)
+```bash
+# Run all 80 tests
+pytest
 
-```json
-{
-  "type": "FeatureCollection",
-  "features": [{
-    "type": "Feature",
-    "properties": {
-      "AC_NAME": "Shivajinagar",
-      "DIST_NAME": "BANGALORE",
-      "ST_NAME": "KARNATAKA"
-    },
-    "geometry": {
-      "type": "Polygon",
-      "coordinates": [[[lon, lat], ...]]
-    }
-  }]
-}
+# Verbose — prints every test name
+pytest -v
+
+# Single file
+pytest tests/test_raycast.py
+pytest tests/test_services.py
+pytest tests/test_api.py
+pytest tests/test_loader.py
+
+# Single class
+pytest tests/test_raycast.py::TestPolygonWithHole
+pytest tests/test_api.py::TestLookupHappyPath
+
+# Single test method
+pytest tests/test_services.py::TestACToPCMap::test_all_37_ac_names_are_mapped
+
+# Keyword filter
+pytest -k "503 or 404"
+pytest -k "TestEdgeCases"
+
+# Stop at first failure
+pytest -x
+
+# Full tracebacks
+pytest --tb=long
+
+# Show the 5 slowest tests
+pytest --durations=5
 ```
 
-### pc_bangalore.geojson
-GeoJSON FeatureCollection of 4 parliamentary constituency polygons.
+**Note on inline comments in terminal commands:** The shell treats `#` as a comment
+delimiter, so `pytest -v # verbose` works (the comment is stripped before execution).
+The error `file or directory not found: #` only occurs when pasting multi-line blocks
+where a bare `# comment` line is parsed as a command argument. Always write comments
+on their own line, or use separate commands.
 
-> ⚠️ **Note:** This file is loaded but its polygons are **not used for MP lookup**. The AC→PC mapping in `services.py` is used instead, because the Bangalore Rural PC boundary is a large shape that incorrectly overlaps the other three constituencies.
+---
 
-### ac_data.json
-Dictionary keyed by the **exact AC_NAME** value from the GeoJSON.
+## API Reference
+
+**Base URL:** `http://localhost:8000`
+
+All responses are JSON. Errors follow FastAPI's standard `{"detail": "..."}` envelope.
+
+### Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/` | Root health check |
+| `GET` | `/health` | Count of loaded AC and PC constituencies |
+| `GET` | `/api/v1/lookup` | Find MLA and MP for a coordinate |
+| `GET` | `/api/v1/constituencies` | List all AC and PC names |
+| `GET` | `/api/v1/constituencies/geojson/{ac_name}` | GeoJSON feature for one AC |
+| `GET` | `/docs` | Swagger UI (auto-generated) |
+
+---
+
+### `GET /api/v1/lookup`
+
+**Query parameters:**
+
+| Param | Type | Required | Range | Description |
+|---|---|---|---|---|
+| `lat` | float | Yes | 12.7 – 13.2 | Latitude of the point |
+| `lon` | float | Yes | 77.3 – 77.9 | Longitude of the point |
+
+**200 — Success:**
 
 ```json
 {
-  "Shivajinagar": {
+  "latitude": 12.9716,
+  "longitude": 77.5946,
+  "mla": {
     "name": "Rizwan Arshad",
     "party": "INC",
     "constituency": "Shivajinagar",
     "constituency_number": "157",
     "contact": "+91-80-22866530",
     "email": "rizwanarshad.mla@karnataka.gov.in"
-  }
-}
-```
-
-> ⚠️ Keys must **exactly match** AC_NAME in the GeoJSON — including spaces, dots, and `(SC)` suffixes.
-
-### pc_data.json
-Dictionary keyed by PC name.
-
-```json
-{
-  "Bangalore Central": {
+  },
+  "mp": {
     "name": "PC Mohan",
     "party": "BJP",
     "constituency": "Bangalore Central",
@@ -179,136 +387,253 @@ Dictionary keyed by PC name.
 }
 ```
 
----
+**Error responses:**
 
-## 🗂️ Official AC → PC Mapping
-
-Based on the **2008 Election Commission of India delimitation order**.
-
-| Parliamentary Constituency | Assembly Constituencies |
+| Status | Condition |
 |---|---|
-| **Bangalore North (24)** | K.R.Pura, Byatarayanapura, Yeshvanthapura, Dasarahalli, Mahalakshmi Layout, Malleshwaram, Hebbal, Pulakeshinagar(SC), Yelahanka |
-| **Bangalore Central (25)** | Shivajinagar, Shanti Nagar, Gandhi Nagar, Rajaji Nagar, Chamrajpet, Chickpet, Sarvagnanagar, C.V. Raman Nagar(SC), Mahadevapura |
-| **Bangalore South (26)** | Govindraj Nagar, Vijay Nagar, Basavanagudi, Padmanaba Nagar, B.T.M Layout, Jayanagar, Bommanahalli |
-| **Bangalore Rural (23)** | Rajarajeshwarinagar, Bangalore South (AC), Anekal(SC), Magadi, Ramanagaram, Kanakapura, Channapatna, Hosakote, Doddaballapur, Devanahalli(SC), Nelamangala(SC) |
-
-> ⚠️ **Common confusion:** The AC named **"Bangalore South"** (covering Electronic City, Begur, Anjanapura, Yelachenahalli) belongs to **Bangalore Rural PC** — not Bangalore South PC. These are completely different entities per ECI.
+| `404 Not Found` | Point outside all 37 AC polygon boundaries |
+| `422 Unprocessable Entity` | Missing param, non-numeric, or out of range |
+| `503 Service Unavailable` | Data store not loaded (startup failure) |
 
 ---
 
-## 🌐 API Reference
+### `GET /health`
 
-Base URL: `http://localhost:8000`
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/` | Root health check |
-| GET | `/health` | Returns loaded constituency counts |
-| GET | `/api/v1/lookup?lat=X&lon=Y` | Find MP and MLA for coordinates |
-| GET | `/api/v1/constituencies` | List all constituencies |
-| GET | `/docs` | Interactive Swagger API documentation |
-
-### Lookup Parameters
-
-| Parameter | Type | Required | Valid Range | Description |
-|---|---|---|---|---|
-| `lat` | float | Yes | 12.7 – 13.2 | Latitude |
-| `lon` | float | Yes | 77.3 – 77.9 | Longitude |
-
-### Example Request
-
-```bash
-curl "http://localhost:8000/api/v1/lookup?lat=12.9716&lon=77.5946"
+```json
+{
+  "status": "ok",
+  "ac_constituencies_loaded": 37,
+  "pc_constituencies_loaded": 4
+}
 ```
 
+Returns `503` if `data_store` is `None`.
+
 ---
 
-## 🧪 Test Coordinates
+### `GET /api/v1/constituencies`
 
-| Location | Latitude | Longitude | AC Constituency | PC Constituency |
+```json
+{
+  "assembly_constituencies": ["Anekal", "B.T.M Layout", "Bangalore South", "..."],
+  "parliamentary_constituencies": ["Bangalore Central", "Bangalore North", "..."]
+}
+```
+
+Both lists are sorted alphabetically.
+
+---
+
+### `GET /api/v1/constituencies/geojson/{ac_name}`
+
+Returns a GeoJSON `FeatureCollection` with a single `Feature` for the named AC.
+Lookup is **case-insensitive**. Returns `404` with the AC name in the detail message
+if no match is found.
+
+---
+
+## Example curl Requests
+
+```bash
+# MG Road — Shivajinagar AC, Bangalore Central PC
+curl "http://localhost:8000/api/v1/lookup?lat=12.9716&lon=77.5946"
+
+# Koramangala — B.T.M Layout AC, Bangalore South PC
+curl "http://localhost:8000/api/v1/lookup?lat=12.9352&lon=77.6245"
+
+# Malleshwaram — Malleshwaram AC, Bangalore North PC
+curl "http://localhost:8000/api/v1/lookup?lat=13.0000&lon=77.5700"
+
+# Whitefield — Mahadevapura AC, Bangalore Central PC
+curl "http://localhost:8000/api/v1/lookup?lat=12.9700&lon=77.7500"
+
+# Yelahanka — Yelahanka AC, Bangalore North PC
+curl "http://localhost:8000/api/v1/lookup?lat=13.1000&lon=77.5940"
+
+# Electronic City — "Bangalore South" AC (Rural PC — the naming collision)
+curl "http://localhost:8000/api/v1/lookup?lat=12.8450&lon=77.6600"
+
+# Health check
+curl "http://localhost:8000/health"
+
+# List all constituency names
+curl "http://localhost:8000/api/v1/constituencies"
+
+# GeoJSON for Shivajinagar (case-insensitive)
+curl "http://localhost:8000/api/v1/constituencies/geojson/shivajinagar"
+
+# ── Error cases ──────────────────────────────────────────────────
+
+# 404 — south of all boundaries
+curl "http://localhost:8000/api/v1/lookup?lat=12.72&lon=77.35"
+
+# 422 — lat below minimum (12.7)
+curl "http://localhost:8000/api/v1/lookup?lat=10.00&lon=77.5946"
+
+# 422 — missing lon
+curl "http://localhost:8000/api/v1/lookup?lat=12.9716"
+
+# 422 — non-numeric
+curl "http://localhost:8000/api/v1/lookup?lat=abc&lon=77.5946"
+```
+
+**Test coordinate reference:**
+
+| Landmark | lat | lon | Assembly Constituency | Parliamentary Constituency |
 |---|---|---|---|---|
 | MG Road | 12.9716 | 77.5946 | Shivajinagar | Bangalore Central |
 | Koramangala | 12.9352 | 77.6245 | B.T.M Layout | Bangalore South |
 | Malleshwaram | 13.0000 | 77.5700 | Malleshwaram | Bangalore North |
-| Whitefield | 12.9698 | 77.7500 | Mahadevapura | Bangalore Central |
+| Whitefield | 12.9700 | 77.7500 | Mahadevapura | Bangalore Central |
 | Yelahanka | 13.1000 | 77.5940 | Yelahanka | Bangalore North |
-| Jayanagar | 12.9300 | 77.5800 | Jayanagar | Bangalore South |
+| Jayanagar | 12.9300 | 77.5850 | Jayanagar | Bangalore South |
 | Electronic City | 12.8450 | 77.6600 | Bangalore South (AC) | Bangalore Rural |
-| Kanakapura Road | 12.8200 | 77.5500 | Bangalore South (AC) | Bangalore Rural |
 
 ---
 
-## 🛠️ Troubleshooting
+## Raycasting Algorithm
 
-### "No module named 'app'"
-You are running uvicorn from the wrong folder. You must run it from **inside** `backend/`:
-```bash
-cd backend          # ← must be here first
-uvicorn app.main:app --reload
+Implemented in `backend/app/raycast.py` with no external library dependency.
+
+### Core idea
+
+Cast an imaginary horizontal ray from the test point eastward to infinity.
+Count how many times the ray crosses a polygon edge.
+Odd crossings = inside. Even crossings (including zero) = outside.
+
+```
+Point P ──────────────────────────► (ray to +∞)
+              ╱           ╲
+        cross 1         cross 2       count = 2  →  outside
+
+Point P ────────────────► (ray to +∞)
+              ╱
+        cross 1                       count = 1  →  inside
 ```
 
-### "Loaded 0 constituencies"
-GeoJSON files are missing or invalid. Check:
-```bash
-ls backend/data/
-# Should show all 4 files
+### Implementation detail (`_is_point_in_ring`)
 
-python3 -m json.tool backend/data/ac_bangalore.geojson > /dev/null && echo "Valid"
-```
-
-### "No representatives found" for a location
-Coordinates may be outside all polygon boundaries. Try a coordinate from the test table above. Also check the backend terminal — it logs which AC was matched.
-
-### MLA shows "Data not available"
-The AC was found in the GeoJSON but its name is missing from `ac_data.json`. Find the exact name:
-```bash
-python3 -c "
-import json
-with open('backend/data/ac_bangalore.geojson') as f:
-    d = json.load(f)
-for feat in d['features']:
-    print(repr(feat['properties']['AC_NAME']))
-"
-```
-Then add or fix the matching key in `ac_data.json`.
-
-### SyntaxError in `__init__.py`
-Markdown backticks were accidentally copied into the file. It should contain **only**:
 ```python
-"""Geo-Representative Lookup Backend"""
-__version__ = "1.0.0"
+inside = False
+j = len(ring) - 1
+
+for i, (xi, yi) in enumerate(ring):
+    xj, yj = ring[j]
+
+    # Does this edge straddle the test latitude?
+    if (yi > lat) != (yj > lat):
+
+        # Where does the edge cross the test latitude?
+        x_intersect = (xj - xi) * (lat - yi) / (yj - yi) + xi
+
+        # Is the crossing to the right of the test point?
+        if lon < x_intersect:
+            inside = not inside   # flip on each crossing
+
+    j = i
+
+return inside
 ```
 
----
+The strict `>` comparison (not `>=`) handles the case where the test point
+sits exactly on a horizontal edge — it assigns the point consistently
+to one side without double-counting.
 
-## 📦 Dependencies
+### Geometry types supported
 
-### Backend
-```
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-pydantic==2.5.3
-```
-
-### Frontend
-- [Leaflet.js 1.9.4](https://leafletjs.com/) — interactive map (CDN)
-- [OpenStreetMap](https://www.openstreetmap.org/) — map tiles
-
----
-
-## 📊 Data Sources
-
-| Data | Source |
+| GeoJSON type | Handling |
 |---|---|
-| AC/PC boundary GeoJSON | Karnataka GIS / DataMeet Community Maps |kv
-| AC → PC mapping | Election Commission of India, 2008 Delimitation Order |
-| MLA data | Karnataka Legislative Assembly, 2023 Election Results |
-| MP data | Lok Sabha, 2024 Election Results |
+| `Polygon` | Tests the exterior ring, then short-circuits `False` if the point is inside any interior hole ring |
+| `MultiPolygon` | Tests each polygon independently; returns `True` on the first hit |
 
 ---
 
-## ⚠️ Known Limitations
+## Edge Cases Handled
 
-- **Coverage:** Only covers Bangalore Urban and Bangalore Rural districts.
-- **PC GeoJSON not used for MP lookup:** Bangalore Rural's polygon wraps around the entire city causing overlaps. MP lookup uses the official ECI AC→PC mapping table instead.
-- **Data currency:** Reflects 2023 Karnataka Assembly and 2024 Lok Sabha elections. Update `ac_data.json` and `pc_data.json` after future elections.
+### Algorithm level (`raycast.py`)
+
+| Situation | Handling |
+|---|---|
+| Point on a polygon edge | Strict `>` comparison assigns it consistently to one side — no double-counting |
+| Interior holes | Must be inside exterior ring AND outside all hole rings; any hole match returns `False` immediately |
+| MultiPolygon | `any()` over `_test_polygon` calls — short-circuits on first match |
+| Empty coordinate list | `if not rings: return False` guard in `_test_polygon` |
+| Division by zero | Impossible: the straddling check `(yi > lat) != (yj > lat)` guarantees `yj - yi ≠ 0` before division |
+| Unsupported geometry type | `raise ValueError` with the type name; caller catches it, logs a warning, and skips the feature |
+| Float precision | Not required; W. R. Franklin's algorithm is numerically stable at geographic coordinate magnitudes |
+
+### Service level (`services.py`)
+
+| Situation | Handling |
+|---|---|
+| Point outside all 37 boundaries | `_find_ac` returns `None` → `find_representatives` returns `None` → API returns 404 |
+| AC name not in `ac_data.json` | `_get_mla_data` returns a placeholder with `"name": "Data not available"` |
+| AC name not in ECI mapping | `_ac_name_to_pc` logs a warning and returns `"Unknown"` |
+| Malformed GeoJSON geometry | `ValueError`, `TypeError`, `ZeroDivisionError` caught per-feature; that feature is skipped; iteration continues |
+
+### API level (`main.py`)
+
+| Situation | Handling |
+|---|---|
+| `lat` or `lon` missing | FastAPI returns 422 automatically |
+| Non-numeric parameter | FastAPI returns 422 automatically |
+| `lat` outside 12.7 – 13.2 | FastAPI `ge` / `le` constraint → 422 |
+| `lon` outside 77.3 – 77.9 | FastAPI `ge` / `le` constraint → 422 |
+| Data store not loaded at startup | All routes check `if data_store is None` → 503 |
+
+### Frontend (`app.js`)
+
+| Situation | Handling |
+|---|---|
+| Backend not running | `TypeError` from `fetch` classified as `"api-down"` → error panel shows startup command |
+| Request timeout (>12 s) | `AbortController` fires after 12 000 ms → `AbortError` → "Request timed out" message |
+| Outside boundary | HTTP 404 → classified as `"outside"` → amber panel, distinct message |
+| Geolocation denied | `GeolocationPositionError.code === 1` → specific "access denied" toast |
+| Geolocation unavailable | Code 2 → "unavailable" toast |
+| Geolocation timeout | Code 3 → "timed out" toast |
+| Partial search input + Enter | `handleSearchSubmit` tries partial match before failing — "mallesh" resolves to Malleshwaram |
+| Clipboard API unavailable | `copyCardInfo` wraps in try/catch → "Clipboard access denied" toast |
+| `localStorage` parse error | `getRecent()` catches JSON exceptions and returns `[]` |
+
+---
+
+## Future Improvements
+
+These features are intentionally not yet implemented. They are tracked here so the
+scope of what is and is not built remains clear.
+
+**In-memory caching**
+Add `functools.lru_cache` on `find_representatives` with coordinate rounding (4 decimal
+places ≈ 11 m grid cells). Constituency boundaries do not change between elections,
+so a cache hit avoids re-running raycasting entirely. Expected hit rate >90% for any
+real traffic pattern.
+
+**Redis caching**
+Replace the in-process cache with Redis so cache state is shared across multiple
+Gunicorn workers. Necessary once the app is deployed on a multi-core server with
+several worker processes.
+
+**AWS EC2 deployment**
+- Run on a `t3.small` instance (2 vCPU, 2 GB RAM)
+- Gunicorn with `UvicornWorker` (4 workers) for multi-core utilisation and automatic crash recovery
+- Nginx as reverse proxy on port 80
+- `systemd` service with `Restart=always`
+- Elastic IP + domain name + HTTPS via Let's Encrypt
+
+**New backend endpoint**
+Add `GET /api/v1/lookup/by-name?ac=Malleshwaram` so the frontend can perform
+a name-based lookup without maintaining a hardcoded coordinate map client-side.
+The backend would compute a centroid from the polygon and perform the lookup.
+
+**CI/CD**
+GitHub Actions workflow: run `pytest` on every pull request, block merge on any
+failure, and auto-deploy to EC2 on merge to `main`.
+
+**Data completeness**
+One AC currently has no MLA data record — it returns the "Data not available"
+placeholder. This will be resolved by adding the missing record to `ac_data.json`
+after verifying the correct data.
+
+**Deep-link for coordinates**
+Support `?lat=12.97&lon=77.59` in the URL so any looked-up location can be shared
+as a permanent link, not just the constituency name.

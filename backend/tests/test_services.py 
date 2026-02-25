@@ -1,0 +1,248 @@
+"""
+test_services.py — Unit tests for the business logic in services.py.
+
+Coverage:
+    - find_representatives: happy path, point outside all ACs, missing MLA/MP data
+    - _find_ac: matching, no-match, malformed geometry graceful skip
+    - _ac_name_to_pc: all known mappings, unknown AC name fallback
+    - _get_mla_data: present, missing
+    - _get_mp_data: present, missing
+    - AC_TO_PC_MAP completeness assertions
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from app.services import (
+    AC_TO_PC_MAP,
+    _ac_name_to_pc,
+    _find_ac,
+    _get_mla_data,
+    _get_mp_data,
+    find_representatives,
+)
+from app.loader import DataStore
+
+
+# ════════════════════════════════════════════════════════════════
+#  AC_TO_PC_MAP integrity
+# ════════════════════════════════════════════════════════════════
+
+class TestACToPCMap:
+    """Verify the completeness and structure of the hard-coded AC→PC map."""
+
+    def test_four_parliamentary_constituencies_present(self):
+        assert len(AC_TO_PC_MAP) == 4
+
+    def test_bangalore_north_in_map(self):
+        assert any("Bangalore North" in k for k in AC_TO_PC_MAP)
+
+    def test_bangalore_central_in_map(self):
+        assert any("Bangalore Central" in k for k in AC_TO_PC_MAP)
+
+    def test_bangalore_south_in_map(self):
+        assert any("Bangalore South" in k for k in AC_TO_PC_MAP)
+
+    def test_bangalore_rural_in_map(self):
+        assert any("Bangalore Rural" in k for k in AC_TO_PC_MAP)
+
+    def test_no_ac_belongs_to_two_pcs(self):
+        """Each AC must appear in exactly one PC list."""
+        all_acs: list[str] = []
+        for ac_list in AC_TO_PC_MAP.values():
+            all_acs.extend(ac_list)
+        assert len(all_acs) == len(set(all_acs)), "Duplicate AC found in the map!"
+
+    def test_shivajinagar_in_central(self):
+        central_acs = next(v for k, v in AC_TO_PC_MAP.items() if "Central" in k)
+        assert "Shivajinagar" in central_acs
+
+    def test_malleshwaram_in_north(self):
+        north_acs = next(v for k, v in AC_TO_PC_MAP.items() if "North" in k)
+        assert "Malleshwaram" in north_acs
+
+    def test_btm_layout_in_south(self):
+        south_acs = next(v for k, v in AC_TO_PC_MAP.items() if "South" in k)
+        assert "B.T.M Layout" in south_acs
+
+    def test_bangalore_south_ac_in_rural_not_south_pc(self):
+        """
+        The AC named 'Bangalore South' (Electronic City area) must be in
+        Bangalore Rural PC — this is the notorious common confusion point.
+        """
+        rural_acs = next(v for k, v in AC_TO_PC_MAP.items() if "Rural" in k)
+        south_acs = next(v for k, v in AC_TO_PC_MAP.items() if "South (26)" in k)
+        assert "Bangalore South" in rural_acs
+        assert "Bangalore South" not in south_acs
+
+
+# ════════════════════════════════════════════════════════════════
+#  _ac_name_to_pc
+# ════════════════════════════════════════════════════════════════
+
+class TestACNameToPC:
+    """Unit tests for the AC-name-to-PC-name lookup function."""
+
+    @pytest.mark.parametrize("ac_name, expected_fragment", [
+        ("Shivajinagar",      "Central"),
+        ("Malleshwaram",      "North"),
+        ("B.T.M Layout",      "South"),
+        ("Kanakapura",        "Rural"),
+        ("Yelahanka",         "North"),
+        ("Jayanagar",         "South"),
+        ("Mahadevapura",      "Central"),
+        ("Bangalore South",   "Rural"),   # the "tricky" one
+    ])
+    def test_known_ac_maps_correctly(self, ac_name, expected_fragment):
+        result = _ac_name_to_pc(ac_name)
+        assert expected_fragment in result, (
+            f"Expected '{expected_fragment}' in PC for AC '{ac_name}', got '{result}'"
+        )
+
+    def test_unknown_ac_returns_unknown(self):
+        result = _ac_name_to_pc("Nonexistent AC")
+        assert result == "Unknown"
+
+    def test_whitespace_stripped(self):
+        result = _ac_name_to_pc("  Shivajinagar  ")
+        assert "Central" in result
+
+    def test_empty_string_returns_unknown(self):
+        assert _ac_name_to_pc("") == "Unknown"
+
+
+# ════════════════════════════════════════════════════════════════
+#  _find_ac
+# ════════════════════════════════════════════════════════════════
+
+class TestFindAC:
+    """Tests for the AC-polygon iteration and matching function."""
+
+    def _make_feature(self, ac_name: str, lon_min=77.5, lon_max=77.7,
+                      lat_min=12.9, lat_max=13.05) -> dict:
+        """Helper to create a minimal GeoJSON feature with a rectangular polygon."""
+        return {
+            "type": "Feature",
+            "properties": {"AC_NAME": ac_name},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [lon_min, lat_min], [lon_max, lat_min],
+                    [lon_max, lat_max], [lon_min, lat_max],
+                    [lon_min, lat_min],
+                ]],
+            },
+        }
+
+    def test_point_inside_single_feature(self):
+        features = [self._make_feature("TestAC")]
+        result = _find_ac(77.60, 12.97, features)
+        assert result == "TestAC"
+
+    def test_point_outside_single_feature_returns_none(self):
+        features = [self._make_feature("TestAC")]
+        result = _find_ac(0.0, 0.0, features)
+        assert result is None
+
+    def test_point_in_second_of_two_features(self):
+        f1 = self._make_feature("AC_North", lat_min=13.00, lat_max=13.10)
+        f2 = self._make_feature("AC_South", lat_min=12.90, lat_max=13.00)
+        result = _find_ac(77.60, 12.95, [f1, f2])
+        assert result == "AC_South"
+
+    def test_empty_features_list_returns_none(self):
+        assert _find_ac(77.60, 12.97, []) is None
+
+    def test_malformed_geometry_is_skipped(self):
+        """Features with bad geometry should be skipped gracefully."""
+        bad_feature = {
+            "type": "Feature",
+            "properties": {"AC_NAME": "BadAC"},
+            "geometry": {"type": "UnsupportedType", "coordinates": []},
+        }
+        good_feature = self._make_feature("GoodAC")
+        result = _find_ac(77.60, 12.97, [bad_feature, good_feature])
+        assert result == "GoodAC"
+
+    def test_feature_missing_ac_name_property(self):
+        """A feature with no AC_NAME should not crash; returns empty string match."""
+        feature = self._make_feature("")  # AC_NAME == ""
+        result = _find_ac(77.60, 12.97, [feature])
+        # Should return empty string (found the polygon, AC_NAME just happens to be "")
+        assert result == ""
+
+
+# ════════════════════════════════════════════════════════════════
+#  _get_mla_data / _get_mp_data
+# ════════════════════════════════════════════════════════════════
+
+class TestGetRepData:
+    """Tests for the data-fetching helper functions."""
+
+    def test_get_mla_data_present(self, fake_store, sample_mla_record):
+        result = _get_mla_data("Shivajinagar", fake_store)
+        assert result == sample_mla_record
+
+    def test_get_mla_data_missing_returns_placeholder(self, fake_store):
+        result = _get_mla_data("NonExistentAC", fake_store)
+        assert result["name"] == "Data not available"
+        assert result["constituency"] == "NonExistentAC"
+
+    def test_get_mp_data_present(self, fake_store, sample_mp_record):
+        result = _get_mp_data("Bangalore Central", fake_store)
+        assert result == sample_mp_record
+
+    def test_get_mp_data_missing_returns_placeholder(self, fake_store):
+        result = _get_mp_data("NonExistentPC", fake_store)
+        assert result["name"] == "Data not available"
+        assert result["constituency"] == "NonExistentPC"
+
+
+# ════════════════════════════════════════════════════════════════
+#  find_representatives (integration-level unit test)
+# ════════════════════════════════════════════════════════════════
+
+class TestFindRepresentatives:
+    """End-to-end unit tests for the main service function."""
+
+    def test_returns_none_outside_all_boundaries(self, fake_store):
+        result = find_representatives(lat=0.0, lon=0.0, store=fake_store)
+        assert result is None
+
+    def test_returns_mla_and_mp_inside_boundary(self, fake_store, sample_mla_record, sample_mp_record):
+        # MG Road — inside the fake Shivajinagar polygon
+        result = find_representatives(lat=12.9716, lon=77.5946, store=fake_store)
+        assert result is not None
+        assert result["mla"] == sample_mla_record
+        assert result["mp"] == sample_mp_record
+
+    def test_result_has_mla_key(self, fake_store):
+        result = find_representatives(lat=12.9716, lon=77.5946, store=fake_store)
+        assert "mla" in result
+
+    def test_result_has_mp_key(self, fake_store):
+        result = find_representatives(lat=12.9716, lon=77.5946, store=fake_store)
+        assert "mp" in result
+
+    def test_missing_mla_data_returns_placeholder(self, fake_store, square_polygon_geometry):
+        """When AC is matched but MLA data is absent, a placeholder is returned."""
+        store_no_mla = DataStore(
+            ac_features=[{
+                "type": "Feature",
+                "properties": {"AC_NAME": "Shivajinagar"},
+                "geometry": square_polygon_geometry,
+            }],
+            pc_features=[],
+            ac_data={},   # no MLA data
+            pc_data={"Bangalore Central": {"name": "PC Mohan", "party": "BJP",
+                                           "constituency": "Bangalore Central"}},
+        )
+        result = find_representatives(lat=12.9716, lon=77.5946, store=store_no_mla)
+        assert result["mla"]["name"] == "Data not available"
+        assert result["mp"]["name"] == "PC Mohan"
+
+    def test_empty_data_store_returns_none(self):
+        empty_store = DataStore()
+        result = find_representatives(lat=12.9716, lon=77.5946, store=empty_store)
+        assert result is None

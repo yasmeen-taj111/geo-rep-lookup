@@ -1,0 +1,20 @@
+[pytest]
+# pytest.ini — Configuration for Geo-Representative Lookup test suite
+
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+
+# Show short tracebacks and verbose test names
+addopts =
+    -v
+    --tb=short
+    --strict-markers
+    -p no:warnings
+
+# Custom markers
+markers =
+    unit: Pure unit tests with no I/O
+    integration: Tests that use TestClient / HTTP
+    slow: Tests that may take > 1s

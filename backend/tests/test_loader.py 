@@ -1,0 +1,160 @@
+"""
+test_loader.py — Unit tests for the data loading utilities in loader.py.
+
+Tests use tmp_path fixtures to write real files, avoiding dependency on the
+actual data directory. Covers:
+    - _load_geojson: valid file, missing file, malformed JSON
+    - _load_json_data: valid file, missing file, malformed JSON, empty dict
+    - load_all_data: DataStore shape, no-crash when files missing
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from app.loader import (
+    DataStore,
+    _load_geojson,
+    _load_json_data,
+    load_all_data,
+)
+
+
+# ════════════════════════════════════════════════════════════════
+#  _load_geojson
+# ════════════════════════════════════════════════════════════════
+
+class TestLoadGeoJSON:
+
+    def _write_geojson(self, tmp_path: Path, features: list) -> Path:
+        p = tmp_path / "test.geojson"
+        p.write_text(json.dumps({"type": "FeatureCollection", "features": features}))
+        return p
+
+    def test_valid_file_returns_features(self, tmp_path):
+        feature = {"type": "Feature", "properties": {"AC_NAME": "TestAC"}, "geometry": {}}
+        path = self._write_geojson(tmp_path, [feature])
+        result = _load_geojson(path)
+        assert len(result) == 1
+        assert result[0]["properties"]["AC_NAME"] == "TestAC"
+
+    def test_empty_features_list_returns_empty(self, tmp_path):
+        path = self._write_geojson(tmp_path, [])
+        result = _load_geojson(path)
+        assert result == []
+
+    def test_missing_file_returns_empty_list(self, tmp_path):
+        result = _load_geojson(tmp_path / "nonexistent.geojson")
+        assert result == []
+
+    def test_malformed_json_returns_empty_list(self, tmp_path):
+        p = tmp_path / "bad.geojson"
+        p.write_text("{ this is not valid json }")
+        result = _load_geojson(p)
+        assert result == []
+
+    def test_multiple_features_loaded(self, tmp_path):
+        features = [
+            {"type": "Feature", "properties": {"AC_NAME": f"AC_{i}"}, "geometry": {}}
+            for i in range(5)
+        ]
+        path = self._write_geojson(tmp_path, features)
+        result = _load_geojson(path)
+        assert len(result) == 5
+
+    def test_returns_list_type(self, tmp_path):
+        path = self._write_geojson(tmp_path, [])
+        assert isinstance(_load_geojson(path), list)
+
+    def test_missing_features_key_returns_empty(self, tmp_path):
+        p = tmp_path / "no_features.geojson"
+        p.write_text(json.dumps({"type": "FeatureCollection"}))  # no "features" key
+        result = _load_geojson(p)
+        assert result == []
+
+
+# ════════════════════════════════════════════════════════════════
+#  _load_json_data
+# ════════════════════════════════════════════════════════════════
+
+class TestLoadJSONData:
+
+    def test_valid_file_returns_dict(self, tmp_path):
+        data = {"Shivajinagar": {"name": "Rizwan Arshad", "party": "INC"}}
+        p = tmp_path / "ac_data.json"
+        p.write_text(json.dumps(data))
+        result = _load_json_data(p)
+        assert result == data
+
+    def test_missing_file_returns_empty_dict(self, tmp_path):
+        result = _load_json_data(tmp_path / "ghost.json")
+        assert result == {}
+
+    def test_malformed_json_returns_empty_dict(self, tmp_path):
+        p = tmp_path / "broken.json"
+        p.write_text("not json at all")
+        result = _load_json_data(p)
+        assert result == {}
+
+    def test_empty_object_returns_empty_dict(self, tmp_path):
+        p = tmp_path / "empty.json"
+        p.write_text("{}")
+        result = _load_json_data(p)
+        assert result == {}
+
+    def test_returns_dict_type(self, tmp_path):
+        p = tmp_path / "data.json"
+        p.write_text("{}")
+        assert isinstance(_load_json_data(p), dict)
+
+    def test_multiple_entries_loaded(self, tmp_path):
+        data = {f"AC_{i}": {"name": f"Rep {i}"} for i in range(10)}
+        p = tmp_path / "data.json"
+        p.write_text(json.dumps(data))
+        result = _load_json_data(p)
+        assert len(result) == 10
+
+
+# ════════════════════════════════════════════════════════════════
+#  load_all_data
+# ════════════════════════════════════════════════════════════════
+
+class TestLoadAllData:
+    """
+    load_all_data reads from hard-coded paths. We patch the path constants
+    to point to missing files so we can verify graceful degradation.
+    """
+
+    def test_returns_datastore_instance(self):
+        with patch("app.loader._AC_GEOJSON_PATH", Path("/nonexistent/ac.geojson")), \
+             patch("app.loader._PC_GEOJSON_PATH", Path("/nonexistent/pc.geojson")), \
+             patch("app.loader._AC_DATA_PATH",    Path("/nonexistent/ac_data.json")), \
+             patch("app.loader._PC_DATA_PATH",    Path("/nonexistent/pc_data.json")):
+            result = load_all_data()
+        assert isinstance(result, DataStore)
+
+    def test_missing_files_produce_empty_store(self):
+        with patch("app.loader._AC_GEOJSON_PATH", Path("/nonexistent/ac.geojson")), \
+             patch("app.loader._PC_GEOJSON_PATH", Path("/nonexistent/pc.geojson")), \
+             patch("app.loader._AC_DATA_PATH",    Path("/nonexistent/ac_data.json")), \
+             patch("app.loader._PC_DATA_PATH",    Path("/nonexistent/pc_data.json")):
+            store = load_all_data()
+        assert store.ac_features == []
+        assert store.pc_features == []
+        assert store.ac_data == {}
+        assert store.pc_data == {}
+
+    def test_datastore_fields_are_correct_types(self):
+        with patch("app.loader._AC_GEOJSON_PATH", Path("/nonexistent/ac.geojson")), \
+             patch("app.loader._PC_GEOJSON_PATH", Path("/nonexistent/pc.geojson")), \
+             patch("app.loader._AC_DATA_PATH",    Path("/nonexistent/ac_data.json")), \
+             patch("app.loader._PC_DATA_PATH",    Path("/nonexistent/pc_data.json")):
+            store = load_all_data()
+        assert isinstance(store.ac_features, list)
+        assert isinstance(store.pc_features, list)
+        assert isinstance(store.ac_data, dict)
+        assert isinstance(store.pc_data, dict)
