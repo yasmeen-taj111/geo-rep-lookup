@@ -161,21 +161,53 @@ def _ac_name_to_pc(ac_name: str) -> str:
     """
     Map an Assembly Constituency name to its Parliamentary Constituency.
 
-    Uses the inverted ECI delimitation table. Falls back to "Unknown" if
-    the AC name is not present in the mapping (should not happen for valid
-    Bangalore data).
+    Lookup strategy (in order):
+      1. Raw name as-is        — handles "Anekal(SC)" → Bangalore Rural
+      2. Stripped clean name   — handles "Anekal"     → tries "Anekal" key
+      3. With (SC) appended    — handles "Anekal"     → tries "Anekal(SC)" key
+      4. Case-insensitive scan — last-resort for any capitalisation mismatch
+
+    This makes the function robust regardless of whether the GeoJSON stores
+    AC names with or without the "(SC)" reservation suffix.
 
     Args:
         ac_name: The AC_NAME value from the matched GeoJSON feature.
 
     Returns:
-        The full Parliamentary Constituency name (with ECI number suffix).
+        The full Parliamentary Constituency name (with ECI number suffix),
+        or "Unknown" if no mapping can be found.
     """
-    pc = _AC_NAME_TO_PC.get(ac_name.strip())
-    if pc is None:
-        logger.warning("AC %r not found in AC→PC mapping; defaulting to Unknown.", ac_name)
-        return "Unknown"
-    return pc
+    raw = ac_name.strip()
+
+    # 1. Exact match
+    pc = _AC_NAME_TO_PC.get(raw)
+    if pc:
+        return pc
+
+    # 2. Stripped name (removes "(SC)" / "(ST)" suffix)
+    clean = _normalise_ac_name(raw)
+    pc = _AC_NAME_TO_PC.get(clean)
+    if pc:
+        return pc
+
+    # 3. Try with (SC) appended — for GeoJSON that drops the suffix
+    pc = _AC_NAME_TO_PC.get(f"{clean}(SC)")
+    if pc:
+        return pc
+
+    # 4. Case-insensitive scan
+    raw_lower = raw.lower()
+    clean_lower = clean.lower()
+    for key, val in _AC_NAME_TO_PC.items():
+        k = key.lower()
+        if k == raw_lower or k == clean_lower:
+            return val
+
+    logger.warning(
+        "AC %r not found in AC→PC mapping (tried %r and %r(SC)).",
+        ac_name, clean, clean
+    )
+    return "Unknown"
 
 
 def _normalise_ac_name(ac_name: str) -> str:

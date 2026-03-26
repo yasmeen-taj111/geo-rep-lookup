@@ -2,11 +2,12 @@
 main.py — FastAPI application entry point for Geo-Representative Lookup.
 
 Exposes:
-    GET /                          — health check (root)
-    GET /health                    — detailed health info
-    GET /api/v1/lookup             — core lookup by lat/lon
-    GET /api/v1/constituencies     — list all loaded constituencies
+    GET /                                          — health check (root)
+    GET /health                                    — detailed health info
+    GET /api/v1/lookup                             — core lookup by lat/lon
+    GET /api/v1/constituencies                     — list all loaded constituencies
     GET /api/v1/constituencies/geojson/{ac_name}  — GeoJSON for one AC
+    GET /api/v1/debug                              — full diagnostic dump
 """
 
 from __future__ import annotations
@@ -34,8 +35,19 @@ async def lifespan(app: FastAPI):
     """Load all GeoJSON and JSON data files before accepting requests."""
     global data_store
     data_store = load_all_data()
-    logger.info("Loaded %d AC constituencies", len(data_store.ac_features))
-    logger.info("Loaded %d PC constituencies", len(data_store.pc_data))
+
+    ac_names_in_geojson = [
+        f["properties"].get("AC_NAME", "")
+        for f in data_store.ac_features
+    ]
+
+    logger.info("Loaded %d AC features from GeoJSON", len(data_store.ac_features))
+    logger.info("AC names in GeoJSON: %s", sorted(ac_names_in_geojson))
+    logger.info("ac_data.json keys  : %s", sorted(data_store.ac_data.keys()))
+    logger.info("pc_data.json keys  : %s", sorted(data_store.pc_data.keys()))
+    logger.info("Loaded %d MLA records, %d MP records",
+                len(data_store.ac_data), len(data_store.pc_data))
+
     yield
     logger.info("Shutting down — releasing data store.")
 
@@ -47,7 +59,7 @@ app = FastAPI(
         "Find your MLA (Member of Legislative Assembly) and MP (Member of Parliament) "
         "for any coordinate within Bangalore, Karnataka."
     ),
-    version="2.0.0",
+    version="3.1.0",
     lifespan=lifespan,
 )
 
@@ -65,7 +77,7 @@ app.add_middleware(
 @app.get("/", tags=["health"])
 def root():
     """Root health-check endpoint."""
-    return {"status": "ok", "message": "Geo-Representative Lookup API is running."}
+    return {"status": "ok", "message": "Geo-Representative Lookup API v3.1 is running."}
 
 
 @app.get("/health", tags=["health"])
@@ -76,7 +88,72 @@ def health():
     return {
         "status": "ok",
         "ac_constituencies_loaded": len(data_store.ac_features),
-        "pc_constituencies_loaded": len(data_store.pc_data),
+        "mla_records_loaded":       len(data_store.ac_data),
+        "mp_records_loaded":        len(data_store.pc_data),
+        "pc_constituencies_loaded": len(data_store.pc_data),  # alias kept for test compatibility
+    }
+
+
+@app.get("/api/v1/debug", tags=["debug"])
+def debug_data():
+    """
+    Diagnostic endpoint — shows the exact keys loaded from every data file
+    and whether each AC successfully resolves to MLA and MP data.
+
+    This is the tool to use whenever you see 'Data unavailable' in the UI.
+    It tells you exactly which AC is failing and why.
+
+    Run:   curl http://localhost:8000/api/v1/debug | python3 -m json.tool
+    """
+    if data_store is None:
+        raise HTTPException(status_code=503, detail="Data store not initialised.")
+
+    from app.services import _ac_name_to_pc, _PC_DISPLAY_NAMES, _normalise_ac_name
+
+    ac_names_raw = [
+        feat["properties"].get("AC_NAME", "")
+        for feat in data_store.ac_features
+    ]
+
+    resolved = []
+    for raw in sorted(ac_names_raw):
+        pc_full  = _ac_name_to_pc(raw)
+        pc_short = _PC_DISPLAY_NAMES.get(pc_full, pc_full)
+        clean    = _normalise_ac_name(raw)
+
+        # Check MLA: exact OR normalised key OR case-insensitive
+        mla_found = raw in data_store.ac_data or clean in data_store.ac_data
+        if not mla_found:
+            mla_found = any(k.lower() == clean.lower() for k in data_store.ac_data)
+
+        # Check MP: exact OR case-insensitive
+        mp_found = pc_short in data_store.pc_data
+        if not mp_found:
+            mp_found = any(k.lower().strip() == pc_short.lower().strip()
+                           for k in data_store.pc_data)
+
+        resolved.append({
+            "geojson_ac_name": raw,
+            "clean_ac_name":   clean,
+            "pc_full":         pc_full,
+            "pc_short":        pc_short,
+            "mla_found":       mla_found,
+            "mp_found":        mp_found,
+        })
+
+    broken = [r for r in resolved if not r["mla_found"] or not r["mp_found"]]
+
+    return {
+        "summary": {
+            "ac_features_in_geojson": len(ac_names_raw),
+            "mla_records_in_ac_data": len(data_store.ac_data),
+            "mp_records_in_pc_data":  len(data_store.pc_data),
+            "broken_lookups":         len(broken),
+        },
+        "broken_lookups":   broken,
+        "all_resolved":     resolved,
+        "ac_data_keys":     sorted(data_store.ac_data.keys()),
+        "pc_data_keys":     sorted(data_store.pc_data.keys()),
     }
 
 
@@ -154,7 +231,7 @@ def get_ac_geojson(ac_name: str):
     This is used by the frontend to highlight the matched AC boundary on the map.
 
     Args:
-        ac_name: The exact AC_NAME string as stored in the GeoJSON.
+        ac_name: The AC_NAME string (case-insensitive).
 
     Raises:
         HTTPException 404: If no matching AC feature is found.
