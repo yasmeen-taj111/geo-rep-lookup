@@ -63,7 +63,13 @@
   /* ══════════════════════════════════════════════════════════════
      CONFIG
   ══════════════════════════════════════════════════════════════ */
-  const API = "http://localhost:8000";
+  // In production the backend is on the same origin (Railway serves both via Uvicorn).
+  // In local dev it runs separately on :8000.
+  // Set window.REPLOOKUP_API = "https://your-api.railway.app" to override.
+  const API = window.REPLOOKUP_API
+    ?? (location.hostname === "localhost" || location.hostname === "127.0.0.1"
+      ? "http://localhost:8000"
+      : "");
   const CENTER = [12.9716, 77.5946]; // MG Road / Shivajinagar
   const ZOOM = 11;
   const BOUNDS = [[12.40, 77.00], [13.40, 78.10]];
