@@ -822,40 +822,124 @@
   let suggestionIndex = -1;
 
   /**
+   * Live geocoding state — shared between renderDropdown (display) and
+   * the debounced Nominatim fetch (data).
+   *
+   * geocodeResults  : array of {name, lat, lon, displayName} from Nominatim
+   * geocodeQuery    : the query that produced geocodeResults (for staleness check)
+   * geocodePending  : true while a Nominatim request is in-flight
+   */
+  const geo = { results: [], query: "", pending: false };
+
+  /**
+   * Debounce helper — returns a function that delays calling fn by `ms`
+   * milliseconds after the last invocation.
+   */
+  function debounce(fn, ms) {
+    let timer;
+    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+  }
+
+  /**
+   * Fetch up to 5 Nominatim autocomplete suggestions for a query,
+   * restricted to Bangalore's bounding box.
+   *
+   * Called debounced (400ms) on every keystroke so the dropdown
+   * shows real-world places as the user types — just like a cab app.
+   *
+   * Results are stored in geo.results and renderDropdown() is called
+   * to repaint the dropdown with the new data.
+   */
+  async function _fetchGeocodeSuggestions(rawQuery) {
+    const q = rawQuery.trim();
+    if (q.length < 2) {
+      geo.results = []; geo.query = ""; geo.pending = false;
+      renderDropdown(dom.searchInput.value);
+      return;
+    }
+
+    geo.pending = true;
+    geo.query = q;
+    renderDropdown(dom.searchInput.value); // show spinner row immediately
+
+    const bbox = "77.37,12.74,77.84,13.14";
+    const encoded = encodeURIComponent(`${q}, Bangalore, Karnataka, India`);
+    const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&bounded=1&viewbox=${bbox}&addressdetails=0`;
+
+    try {
+      const res = await fetch(url, {
+        headers: { "Accept-Language": "en", "User-Agent": "RepLookup-Bangalore/3.1" },
+        signal: AbortSignal.timeout(5000),
+      });
+      const data = await res.json();
+
+      // Ignore stale responses (user may have typed more since this fired)
+      if (geo.query !== q) return;
+
+      geo.results = data
+        .filter(r => {
+          const lat = parseFloat(r.lat), lon = parseFloat(r.lon);
+          return lat >= 12.74 && lat <= 13.14 && lon >= 77.37 && lon <= 77.84;
+        })
+        .map(r => ({
+          name: r.display_name.split(",")[0].trim(),
+          fullName: r.display_name,
+          lat: parseFloat(r.lat),
+          lon: parseFloat(r.lon),
+          type: r.type ?? r.class ?? "place",
+        }));
+
+    } catch (_) {
+      if (geo.query !== q) return;
+      geo.results = [];
+    } finally {
+      if (geo.query === q) {
+        geo.pending = false;
+        renderDropdown(dom.searchInput.value);
+      }
+    }
+  }
+
+  // Debounced version — fires 400ms after the user stops typing
+  const fetchGeocodeSuggestionsDebounced = debounce(_fetchGeocodeSuggestions, 400);
+
+  /**
    * Re-render the entire suggestion dropdown for a given input value.
-   * Called on every keystroke — fast because everything is in-memory.
+   * Called on every keystroke (synchronously for local matches) and
+   * again when debounced Nominatim results arrive.
    *
-   * Shows two kinds of results interleaved:
-   *   - AC name matches  (icon ◎, sub-label "AC")
-   *   - Locality matches (icon ⊙, sub-label shows the AC it maps to)
+   * Three tiers of results — shown together in one list:
+   *   ◎  Constituency names  (instant, local)
+   *   ⊙  Known locality map  (instant, local, 416 entries)
+   *   📍 Nominatim geocoded  (async, debounced 400ms — real-world places)
    *
-   * Layout:
-   *   • Input empty  → show recent searches (if any)
-   *   • Input has text → show AC + locality matches (or "no matches" row)
-   *   • Both sections are never shown simultaneously (less clutter)
+   * "Not found" state: a cute inline row with friendly copy and a tip.
    */
   function renderDropdown(rawQuery) {
     const q = rawQuery.trim().toLowerCase();
     const recents = getRecent();
 
-    // ── Compute matches ───────────────────────────────────────────
+    // ── Compute local matches ─────────────────────────────────────
 
-    // AC name matches (substring, case-insensitive)
     const acMatches = q.length > 0
-      ? ALL_AC.filter(ac => ac.toLowerCase().includes(q)).slice(0, 5)
+      ? ALL_AC.filter(ac => ac.toLowerCase().includes(q)).slice(0, 4)
       : [];
 
-    // Locality matches — find keys that include the query or vice-versa
     const localityMatches = q.length >= 2
       ? Object.entries(LOCALITY_TO_AC)
-        .filter(([key, ac]) =>
-          key.includes(q) &&
-          !acMatches.includes(ac)    // don't duplicate if AC already shown
-        )
-        .slice(0, 4)                 // max 4 locality suggestions
+        .filter(([key, ac]) => key.includes(q) && !acMatches.includes(ac))
+        .slice(0, 3)
       : [];
 
-    const totalMatches = acMatches.length + localityMatches.length;
+    // Geocoded results from last Nominatim fetch (may be from a previous
+    // query if debounce hasn't fired yet — that's fine, they stay until
+    // the next batch arrives)
+    const geoMatches = (q.length >= 2 && geo.query && q.startsWith(geo.query.toLowerCase().slice(0, q.length)))
+      ? geo.results.slice(0, 3)
+      : (geo.query.toLowerCase() === q ? geo.results.slice(0, 3) : []);
+
+    const totalLocal = acMatches.length + localityMatches.length;
+    const hasAny = totalLocal > 0 || geoMatches.length > 0 || geo.pending;
 
     // ── Section visibility ────────────────────────────────────────
     dom.recentSection.classList.toggle("hidden", q.length > 0 || recents.length === 0);
@@ -878,67 +962,102 @@
       </li>`
     ).join("");
 
-    // ── Render live match items ───────────────────────────────────
+    // ── Render live results ───────────────────────────────────────
     if (q.length > 0) {
-      if (totalMatches > 0) {
-        // AC name rows
-        const acRows = acMatches.map(ac => {
-          const lower = ac.toLowerCase();
-          const start = lower.indexOf(q);
-          const end = start + q.length;
-          const name = start >= 0
-            ? escHtml(ac.slice(0, start))
-            + `<mark>${escHtml(ac.slice(start, end))}</mark>`
-            + escHtml(ac.slice(end))
-            : escHtml(ac);
-          return `
+
+      // Helper to highlight the matching substring
+      function highlight(text, query) {
+        const idx = text.toLowerCase().indexOf(query);
+        if (idx < 0) return escHtml(text);
+        return escHtml(text.slice(0, idx))
+          + `<mark>${escHtml(text.slice(idx, idx + query.length))}</mark>`
+          + escHtml(text.slice(idx + query.length));
+      }
+
+      if (hasAny) {
+        const rows = [];
+
+        // ── Constituency name matches ─────────────────────────────
+        acMatches.forEach(ac => {
+          rows.push(`
             <li class="suggest-item"
                 role="option"
                 data-action="select-ac"
                 data-value="${escHtml(ac)}"
                 tabindex="-1">
               <span class="suggest-item__icon" aria-hidden="true">◎</span>
-              <span class="suggest-item__name">${name}</span>
+              <span class="suggest-item__name">${highlight(ac, q)}</span>
               <span class="suggest-item__sub">Constituency</span>
-            </li>`;
+            </li>`);
         });
 
-        // Locality rows — show the locality name + which AC it belongs to
-        const localityRows = localityMatches.map(([key, ac]) => {
-          const lower = key;
-          const start = lower.indexOf(q);
-          const end = start + q.length;
-          // Title-case the key for display
-          const displayKey = key.replace(/\b\w/g, c => c.toUpperCase());
-          const name = start >= 0
-            ? escHtml(displayKey.slice(0, start))
-            + `<mark>${escHtml(displayKey.slice(start, end))}</mark>`
-            + escHtml(displayKey.slice(end))
-            : escHtml(displayKey);
-          return `
+        // ── Known locality matches ────────────────────────────────
+        localityMatches.forEach(([key, ac]) => {
+          const display = key.replace(/\b\w/g, c => c.toUpperCase());
+          rows.push(`
             <li class="suggest-item suggest-item--locality"
                 role="option"
                 data-action="select-locality"
                 data-value="${escHtml(ac)}"
-                data-label="${escHtml(displayKey)}"
+                data-label="${escHtml(display)}"
                 tabindex="-1">
-              <span class="suggest-item__icon" aria-hidden="true">⊙</span>
-              <span class="suggest-item__name">${name}</span>
+              <span class="suggest-item__icon suggest-item__icon--locality" aria-hidden="true">⊙</span>
+              <span class="suggest-item__name">${highlight(display, q)}</span>
               <span class="suggest-item__sub">${escHtml(ac)}</span>
-            </li>`;
+            </li>`);
         });
 
-        dom.suggestList.innerHTML = [...acRows, ...localityRows].join("");
+        // ── Geocoded place matches (Nominatim) ────────────────────
+        if (geoMatches.length > 0) {
+          // Only add a divider if there were local results above
+          if (rows.length > 0) {
+            rows.push(`<li class="suggest-divider" aria-hidden="true">
+              <span>Places nearby</span></li>`);
+          }
+          geoMatches.forEach(r => {
+            rows.push(`
+              <li class="suggest-item suggest-item--geo"
+                  role="option"
+                  data-action="select-geo"
+                  data-lat="${r.lat}"
+                  data-lon="${r.lon}"
+                  data-label="${escHtml(r.name)}"
+                  tabindex="-1">
+                <span class="suggest-item__icon suggest-item__icon--geo" aria-hidden="true">📍</span>
+                <span class="suggest-item__name">${highlight(r.name, q)}</span>
+                <span class="suggest-item__sub suggest-item__sub--geo">${escHtml(r.type)}</span>
+              </li>`);
+          });
+        }
+
+        // ── Searching spinner row (geocode in-flight) ─────────────
+        if (geo.pending && geoMatches.length === 0) {
+          rows.push(`
+            <li class="suggest-item suggest-item--searching"
+                role="option"
+                aria-disabled="true"
+                tabindex="-1">
+              <span class="suggest-item__spinner" aria-hidden="true"></span>
+              <span class="suggest-item__name" style="color:var(--text-3);font-style:italic">
+                Searching places…
+              </span>
+            </li>`);
+        }
+
+        dom.suggestList.innerHTML = rows.join("");
+
       } else {
-        // Nothing found locally — indicate geocoding fallback will be tried
+        // ── Nothing found anywhere yet ────────────────────────────
+        // Friendly "not found" row inside the dropdown
         dom.suggestList.innerHTML = `
-          <li class="suggest-item suggest-item--empty"
+          <li class="suggest-item suggest-item--notfound"
               role="option"
               aria-disabled="true"
               tabindex="-1">
-            <span class="suggest-item__icon" aria-hidden="true">○</span>
-            <span class="suggest-item__name">
-              Press Enter to search for "<em>${escHtml(rawQuery.trim())}</em>" on the map
+            <span class="suggest-item__notfound-art" aria-hidden="true">🗺️</span>
+            <span class="suggest-item__notfound-text">
+              <strong>No places found for "${escHtml(rawQuery.trim())}"</strong>
+              <small>Try a nearby landmark, road, or just click the map!</small>
             </span>
           </li>`;
       }
@@ -982,8 +1101,13 @@
   });
 
   dom.searchInput.addEventListener("input", e => {
-    dom.clearBtn.classList.toggle("hidden", e.target.value.length === 0);
-    renderDropdown(e.target.value);
+    const val = e.target.value;
+    dom.clearBtn.classList.toggle("hidden", val.length === 0);
+    // Clear stale geo results immediately so old results don't flash
+    if (val.trim().length < 2) { geo.results = []; geo.query = ""; geo.pending = false; }
+    renderDropdown(val);
+    // Kick off debounced Nominatim fetch for live place suggestions
+    fetchGeocodeSuggestionsDebounced(val);
   });
 
   dom.searchInput.addEventListener("keydown", e => {
@@ -1036,8 +1160,8 @@
   function handleSuggestionClick(el) {
     const action = el.dataset.action;
     const value = el.dataset.value;
-    const label = el.dataset.label;   // only set for locality items
-    if (!action || !value) return;
+    const label = el.dataset.label;
+    if (!action) return;
 
     if (action === "remove-recent") { removeRecent(value); return; }
 
@@ -1046,15 +1170,31 @@
       dom.clearBtn.classList.remove("hidden");
       hideDropdown();
       handleSearchSubmit(value);
+      return;
     }
 
     if (action === "select-locality") {
-      // value = the AC name, label = the neighbourhood display name
       dom.searchInput.value = label || value;
       dom.clearBtn.classList.remove("hidden");
       hideDropdown();
       if (label) showToast(`"${label}" is in ${value} constituency`, "info", 3000);
       _triggerACLookup(value);
+      return;
+    }
+
+    // Geocoded place selected directly from dropdown — go straight to coord
+    if (action === "select-geo") {
+      const lat = parseFloat(el.dataset.lat);
+      const lon = parseFloat(el.dataset.lon);
+      if (isNaN(lat) || isNaN(lon)) return;
+      dom.searchInput.value = label || "";
+      dom.clearBtn.classList.remove("hidden");
+      hideDropdown();
+      geo.results = []; geo.query = ""; // clear so old results don't linger
+      if (state.activeView !== "map") switchView("map");
+      state.map.flyTo([lat, lon], 15, { animate: true, duration: 0.8 });
+      placeMarker(lat, lon);
+      performLookup(lat, lon);
     }
   }
 
@@ -1130,8 +1270,17 @@
     }
 
     // ── Step 5: Nominatim geocoding fallback ──────────────────────
-    // Shows a searching toast immediately so the user knows something
-    // is happening — Nominatim can take 1-2 seconds.
+    // If the debounced fetch already has results for this query, use
+    // them directly — no extra network call needed.
+    if (geo.results.length > 0 && geo.query.toLowerCase() === q) {
+      const first = geo.results[0];
+      showToast(`Found: ${first.name}`, "success", 2500);
+      if (state.activeView !== "map") switchView("map");
+      state.map.flyTo([first.lat, first.lon], 15, { animate: true, duration: 0.8 });
+      placeMarker(first.lat, first.lon);
+      await performLookup(first.lat, first.lon);
+      return;
+    }
     await _geocodeAndLookup(raw);
   }
 
@@ -1167,7 +1316,7 @@
       const results = await response.json();
 
       if (!results.length) {
-        showToast(`"${placeName}" not found in Bangalore. Try clicking the map.`, "error", 5000);
+        _showNotFoundPanel(placeName);
         return;
       }
 
@@ -1177,7 +1326,7 @@
 
       // Bangalore bounds check
       if (latNum < 12.74 || latNum > 13.14 || lonNum < 77.37 || lonNum > 77.84) {
-        showToast(`"${placeName}" appears to be outside Bangalore.`, "error", 4000);
+        _showNotFoundPanel(placeName, "outside");
         return;
       }
 
@@ -1192,11 +1341,52 @@
     } catch (err) {
       geocodeToast.remove();
       if (err.name === "TimeoutError" || err.name === "AbortError") {
-        showToast("Location search timed out. Try clicking the map.", "error", 4000);
+        showToast("Search timed out — try clicking the map instead.", "error", 4000);
       } else {
-        showToast(`Could not find "${placeName}". Try clicking the map.`, "error", 4500);
+        _showNotFoundPanel(placeName);
       }
     }
+  }
+
+  /**
+   * Show a friendly, illustrated "not found" state in the side panel.
+   * Much warmer than a red toast — gives the user a reason and a next step.
+   *
+   * @param {string} placeName - What the user searched for.
+   * @param {"notfound"|"outside"} reason
+   */
+  function _showNotFoundPanel(placeName, reason = "notfound") {
+    const isOutside = reason === "outside";
+
+    const art = isOutside ? "🌏" : "🗺️";
+    const heading = isOutside
+      ? `"${placeName}" seems to be outside Bangalore`
+      : `Couldn't find "${placeName}"`;
+    const body = isOutside
+      ? "Our data covers Bangalore's 36 Assembly Constituencies. This spot appears to be beyond those boundaries."
+      : "We checked our local map and OpenStreetMap but came up empty. This might be a very new locality, a colloquial name, or a small lane.";
+    const tip = "Try a nearby landmark, the main road, or just tap the map directly.";
+
+    const titleEl = dom.stateError.querySelector(".error-title");
+    const detailEl = dom.stateError.querySelector(".error-msg");
+    const hintEl = dom.stateError.querySelector(".error-hint");
+    const artEl = dom.stateError.querySelector(".error-art");
+
+    // Swap the SVG art for an emoji + custom layout
+    if (artEl) {
+      artEl.innerHTML = `<div class="error-art-emoji">${art}</div>`;
+      artEl.style.color = "var(--amber)";
+    }
+    if (titleEl) titleEl.textContent = heading;
+    if (detailEl) detailEl.textContent = body;
+    if (hintEl) {
+      hintEl.textContent = `💡 ${tip}`;
+      hintEl.classList.add("visible");
+      hintEl.style.cssText = "font-family:inherit;background:var(--bg-3);border-radius:var(--r-sm);padding:.5rem .75rem;font-size:.8rem;color:var(--text-2);";
+    }
+
+    showPanelState("error");
+    // No toast — the panel IS the feedback. Toasts are for transient states.
   }
 
   /**

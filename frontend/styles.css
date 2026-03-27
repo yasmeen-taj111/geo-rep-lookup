@@ -583,9 +583,82 @@ input { font-family: inherit; }
 .suggest-item--empty:hover { background: transparent; }
 .suggest-item--empty .suggest-item__icon { opacity: .5; }
 
-/* Locality suggestion row — slightly indented to distinguish from AC names */
-.suggest-item--locality .suggest-item__icon { color: var(--accent); opacity: .6; }
+/* Locality suggestion row */
+.suggest-item--locality .suggest-item__icon--locality { color: var(--accent); opacity: .6; }
 .suggest-item--locality .suggest-item__sub  { color: var(--accent); opacity: .7; font-size: .72rem; }
+
+/* Geocoded place suggestion row */
+.suggest-item--geo .suggest-item__icon--geo { font-size: .9rem; }
+.suggest-item--geo .suggest-item__sub--geo  {
+  font-size: .7rem;
+  color: var(--text-4);
+  text-transform: capitalize;
+  margin-left: auto;
+}
+
+/* Divider between local and geocoded results */
+.suggest-divider {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem 1rem;
+  font-size: .65rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+/* "Searching…" spinner row */
+.suggest-item--searching {
+  cursor: default;
+  gap: .6rem;
+}
+.suggest-item--searching:hover { background: transparent; }
+.suggest-item__spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--border-2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* "Not found" row inside dropdown */
+.suggest-item--notfound {
+  cursor: default;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: .9rem 1rem;
+}
+.suggest-item--notfound:hover { background: transparent; }
+.suggest-item__notfound-art  { font-size: 1.4rem; flex-shrink: 0; margin-top: .1rem; }
+.suggest-item__notfound-text {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+.suggest-item__notfound-text strong {
+  font-size: .86rem;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.suggest-item__notfound-text small {
+  font-size: .76rem;
+  color: var(--text-3);
+  font-style: italic;
+}
+
+/* Error panel emoji art */
+.error-art-emoji {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: .5rem;
+}
 
 /* Matching text highlight inside suggestion names */
 .suggest-item__name mark {

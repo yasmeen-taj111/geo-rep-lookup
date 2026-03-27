@@ -1,0 +1,59 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments — never commit these
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── pytest ────────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+*.xml          # coverage XML reports
+
+# ── Environment variables — NEVER commit secrets ──────────────────────────────
+.env
+.env.local
+.env.*.local
+*.env
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ── Editors ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.orig
+
+# ── Node (if you ever add a build step) ───────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── Data files — keep out of git if they're large or sensitive ────────────────
+# Uncomment the lines below if your GeoJSON/JSON files are >50MB
+# or contain PII (personal info about elected representatives).
+#
+# backend/data/*.geojson
+# backend/data/*.json
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+uvicorn.log
