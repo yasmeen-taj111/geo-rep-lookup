@@ -1,7 +1,5 @@
-# Root requirements.txt — used by Railway at deploy time.
-# Mirrors backend/requirements.txt and adds aiofiles (needed for
-# FastAPI's StaticFiles mount to serve the frontend).
-
+# Root-level requirements — Railway reads this file at build time.
+# aiofiles is required by FastAPI's StaticFiles to serve the frontend.
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 pydantic==2.5.3

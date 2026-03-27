@@ -1,22 +1,23 @@
 """
-serve.py — Production entry point.
+serve.py — Single entry point for Railway deployment.
 
-Mounts the FastAPI backend AND serves the frontend static files from a single
-Uvicorn process. This means Railway (or any single-process host) only needs
-to run one command: uvicorn serve:app
+Imports the FastAPI app (which has all /api/v1/* routes already registered),
+then mounts the frontend/ static files so the same process serves both.
 
-
+Railway runs: uvicorn serve:app --host 0.0.0.0 --port $PORT
 """
 
 import sys
 from pathlib import Path
 
-
+# Add backend/ to sys.path so "from app.main import app" resolves
 sys.path.insert(0, str(Path(__file__).parent / "backend"))
 
+from app.main import app  # FastAPI instance with all routes registered
 from fastapi.staticfiles import StaticFiles
-from app.main import app
 
+_FRONTEND = Path(__file__).parent / "frontend"
 
-_frontend = Path(__file__).parent / "frontend"
-app.mount("/", StaticFiles(directory=str(_frontend), html=True), name="frontend")
+# IMPORTANT: mount AFTER all API routes so /api/v1/* is not intercepted.
+# html=True means unknown paths return index.html (single-page app behaviour).
+app.mount("/", StaticFiles(directory=str(_FRONTEND), html=True), name="static")
