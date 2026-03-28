@@ -74,9 +74,10 @@ app.add_middleware(
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@app.get("/", tags=["health"])
+@app.get("/api", tags=["health"])
 def root():
-    """Root health-check endpoint."""
+    """Root health-check — moved from / to /api so the StaticFiles mount
+    can serve index.html at the root path when deployed on Railway."""
     return {"status": "ok", "message": "Geo-Representative Lookup API v3.1 is running."}
 
 
